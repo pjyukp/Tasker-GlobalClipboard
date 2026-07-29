@@ -172,8 +172,7 @@ A5：检查/剪贴板.txt 文件是否损坏，可用内置脚本重建。
  
 Q6 导入项目报错
  
-A6：Tasker版本建议6.7.5及以上（项目开发版本），低版本搜索Scene V2不兼容，也可用Scene V1<img width="1080" height="2308" alt="Screenshot_2026-07-29-09-46-47-033_net dinglisch android taskerm~01" src="https://github.com/user-attachments/assets/9eca88bc-07fa-487b-bdd3-9a307fdc12f9" />
-另建一个输入框场景。
+A6：Tasker版本建议6.7.5及以上（项目开发版本），低版本搜索Scene V2不兼容，也可用Scene V1另建一个输入框场景。
  
 开源说明
  
@@ -191,12 +190,7 @@ A6：Tasker版本建议6.7.5及以上（项目开发版本），低版本搜索S
 4. 文本展开完整视图
 5. ShortX/ADB配套工具截图
  
- 
- 
-可直接复制的GitHub标准顶部徽章（可选加在开头）
- 
-markdown
   
-# 全局剪贴板 - Task完整离线剪贴管理器
-![UI演示](assets/main_ui.png)
+# 全局剪贴板 - Tasker完整离线剪贴管理器
+<img width="1080" height="2308" alt="Screenshot_2026-07-29-09-46-47-033_net dinglisch android taskerm~01" src="https://github.com/user-attachments/assets/9eca88bc-07fa-487b-bdd3-9a307fdc12f9" />
 > 基于Tasker Scene 开发的本地持久剪贴记录工具，无联网、隐私安全、多输入适配
