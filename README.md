@@ -192,5 +192,5 @@ A6：Tasker版本建议6.7.5及以上（项目开发版本），低版本搜索S
  
   
 # 全局剪贴板 - Tasker完整离线剪贴管理器
-<img width="1080" height="2308" alt="Screenshot_2026-07-29-09-46-47-033_net dinglisch android taskerm~01" src="https://github.com/user-attachments/assets/9eca88bc-07fa-487b-bdd3-9a307fdc12f9" />
+<img width="1080" height="2306" alt="Screenshot_2026-07-29-10-31-02-806_net dinglisch android taskerm-edit" src="https://github.com/user-attachments/assets/b3e4719b-925c-4f2d-8bac-85f7aefa9fa0" />
 > 基于Tasker Scene 开发的本地持久剪贴记录工具，无联网、隐私安全、多输入适配
