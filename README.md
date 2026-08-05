@@ -124,9 +124,12 @@
 
 ### 8. 翻译集成
 
-- 集成翻译任务，支持选中内容翻译
+- 联通文本翻译项目，支持长按选中内容翻译
 - 可配置翻译任务名称和按钮文本
 - 支持列出所有翻译结果
+
+<img width="1080" height="1202" alt="Screenshot_2026-08-05-18-40-24-868_mark via-edit" src="https://github.com/user-attachments/assets/4b32d961-e443-40ba-8ee9-6d9fb5a1302f" />
+
 
 ---
 
