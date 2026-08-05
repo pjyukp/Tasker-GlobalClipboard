@@ -123,7 +123,7 @@
 - **防抖保存**：写入操作防抖合并，减少 IO 次数
 
 ### 8. 翻译集成
-
+[文本翻译.prj.xml](https://github.com/pjyukp/Tasker-TextTranslation "文本翻译.prj.xml")
 - 联通文本翻译项目，支持长按选中内容翻译
 - 可配置翻译任务名称和按钮文本
 - 支持列出所有翻译结果
