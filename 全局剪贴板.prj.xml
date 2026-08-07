@@ -38,11 +38,11 @@ URI
 		<name>全局剪贴板</name>
 		<pids>223</pids>
 		<scenes>全局剪贴板,搜索输入框</scenes>
-		<tids>224,171,173,172,170,164,294,204,211,205,208</tids>
+		<tids>294,171,224,164,170,173,211,204,172,205,208</tids>
 	</Project>
 	<Scene sr="scene全局剪贴板">
 		<cdate>1782866926203</cdate>
-		<edate>1785925574504</edate>
+		<edate>1786077123740</edate>
 		<heightLand>1200</heightLand>
 		<heightPort>1200</heightPort>
 		<nme>全局剪贴板</nme>
@@ -169,6 +169,7 @@ const DEFAULTS = {
   预览行数: 3,
   重构每行字数: 70,
   截断宽度系数: 0.85,
+  预览换行符: '⤶',
   最近上限: 1000,
   初始加载: 30,
   批量加载: 100,
@@ -226,6 +227,7 @@ const SAVE_DEBOUNCE_MS = CONFIG.保存防抖;
 const SYNC_CHUNK_SIZE = CONFIG.同步块大小;
 const FAST_PREVIEW_COUNT = CONFIG.保存预览数;
 const EXPAND_ZONE_WIDTH = CONFIG.展开宽度;
+const PREVIEW_THE_NEWLINE_CHARCTER = CONFIG.预览换行符;
 const TRUNCATION_WIDTH_COEFFICIENT = CONFIG.截断宽度系数;
 const SEARCH_BATCH_SIZE = CONFIG.搜索批量;
 const SEARCH_INITIAL_RENDER = CONFIG.搜索初始渲染;
@@ -320,7 +322,7 @@ function escapeHtml(text) { const div = document.createElement('div'); div.textC
 function escapeRegExp(string) { return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&amp;'); }
 
 function replaceNewlinesWithSymbol(text) {
-  return (text || '').replace(/\n/g, '⤶');
+  return (text || '').replace(/\n/g, PREVIEW_THE_NEWLINE_CHARCTER);
 }
 
 function buildSearchPreview(fullText, searchTerm, options = {}) {
@@ -675,7 +677,6 @@ function syncFromMainFile() {
     const chunks = [];
     while (pos &lt; lines.length) { chunks.push(lines.slice(pos, pos + SYNC_CHUNK_SIZE)); pos += SYNC_CHUNK_SIZE; }
     let newItems = [];
-
     function processChunk(index) {
       if (index &gt;= chunks.length) {
         const combined = fullData.concat(newItems);
@@ -690,7 +691,6 @@ function syncFromMainFile() {
             }
           });
         }
-
         let changed = false;
         if (newFullData.length !== fullData.length) {
           changed = true;
@@ -727,7 +727,7 @@ function syncFromMainFile() {
         if (hasNewItems) {
           setTimeout(() =&gt; {
             const container = document.getElementById('listContainer');
-            if (!container || container.clientWidth &lt;= 0) {
+              if (!container || container.clientWidth &lt;= 0) {
               return;
             }
             let anyRebuilt = false;
@@ -740,6 +740,7 @@ function syncFromMainFile() {
                     item.previewB64 = newB64;
                     delete item._fallbackPreview;
                     delete item._repaired;
+                    item._rebuilt = true;   // 标记此项预览已更新，用于 DOM 刷新
                     anyRebuilt = true;
                   }
                 }
@@ -747,9 +748,30 @@ function syncFromMainFile() {
               }
             });
             if (anyRebuilt) {
-              if (inSearchMode()) pendingSyncRender = true;
-              else if (Date.now() &lt; suppressRenderUntil) pendingSyncRender = true;
-              else { renderList(); pendingSyncRender = false; }
+              if (inSearchMode()) {
+                pendingSyncRender = true;
+              } else if (Date.now() &lt; suppressRenderUntil) {
+                pendingSyncRender = true;
+              } else {
+                const listContainer = document.getElementById('listContainer');
+                if (listContainer) {
+                  newFullData.forEach(item =&gt; {
+                    if (item._rebuilt) {
+                      const el = listContainer.querySelector(
+                        `.clip-item[data-md5="${item.md5}"][data-record-time="${item.recordTime}"]`
+                      );
+                      if (el) {
+                        const previewEl = el.querySelector('.item-preview');
+                        if (previewEl) {
+                          const decoded = decodePreview(item.previewB64);
+                          previewEl.textContent = replaceNewlinesWithSymbol(decoded);
+                        }
+                      }
+                      delete item._rebuilt; // 清理标记
+                    }
+                  });
+                }
+              }
               scheduleSave();
             }
           }, 500);
@@ -854,7 +876,6 @@ function toggleItemExpand(itemEl) {
         }, 0);
       }
     }
-
     const recordDate = new Date(item.recordTime * 1000);
     const rYear = recordDate.getFullYear();
     const rMonth = String(recordDate.getMonth() + 1).padStart(2, '0');
@@ -863,7 +884,6 @@ function toggleItemExpand(itemEl) {
     const rMinutes = String(recordDate.getMinutes()).padStart(2, '0');
     const rSeconds = String(recordDate.getSeconds()).padStart(2, '0');
     const formattedRecordTime = `${rYear}-${rMonth}-${rDay} ${rHours}:${rMinutes}:${rSeconds}`;
-
     let formattedUseTime;
     if (item.useTime &amp;&amp; item.useTime &gt; 0) {
       const useDate = new Date(item.useTime * 1000);
@@ -888,8 +908,8 @@ function toggleItemExpand(itemEl) {
     itemEl.classList.add('expanded');
     expandedSet.add(item.md5 + '_' + item.recordTime);
     if (badgeZone) badgeZone.style.display = 'none';
-    const now = Math.floor(Date.now() / 1000);
-    item.useTime = now;
+    //const now = Math.floor(Date.now() / 1000);
+    //item.useTime = now;
     updatePreview = true;
   }
 }
@@ -987,7 +1007,7 @@ function generatePreviewB64(fullText) {
 function encodePreviewFromFullText(fullText) {
   if (!fullText) return '';
   const collapsed = fullText.replace(/[ \t]+/g, ' ');
-  const withSymbol = collapsed.replace(/\n/g, '⤶');
+  const withSymbol = collapsed.replace(/\n/g, PREVIEW_THE_NEWLINE_CHARCTER);
   const maxLen = PREVIEW_LINE_COUNT * CHARS_PER_LINE;
   const truncated = withSymbol.length &gt; maxLen
     ? withSymbol.substring(0, maxLen) + '...'
@@ -1875,10 +1895,6 @@ window.globalInsertField = function(fieldName, base64Value, anchor) {
   `.clip-item[data-md5="${anchorMd5}"][data-record-time="${anchorRecordTime}"]`
   );
   if (!itemEl) return;
-  const existing = document.querySelector(`.translation-row[data-field-name="${fieldName}"]`);
-  if (existing &amp;&amp; existing.previousElementSibling === itemEl) {
-    existing.remove();
-  }
   const row = document.createElement('div');
   row.className = 'translation-row';
   row.setAttribute('data-field-name', fieldName);
@@ -2060,7 +2076,6 @@ function togglePin(md5, recordTime) {
 function deleteItem(md5, recordTime) {
   const item = getItemByMd5AndRecordTime(md5, recordTime);
   if (!item) return;
-
   const prefix = String(item.recordTime).substring(0, 3);
   const fileBase = item.md5Base;
   const sameFileExists = fullData.some(other =&gt;
@@ -2091,27 +2106,27 @@ function deleteItem(md5, recordTime) {
 }
 
 function rebuildAllNormalPreviews() {
-if (currentRebuildController &amp;&amp; !currentRebuildController.aborted) {
-  showToast('正在重构中，请稍候');
-  return;
-}
-const targets = fullData.filter(it =&gt; it.pinTime === 0 &amp;&amp; it.favTime === 0);
-if (targets.length === 0) {
-  showToast('没有需要重构的普通数据');
-  return;
-}
-const controller = { aborted: false };
-currentRebuildController = controller;
-const fileCache = new Map();
-const total = targets.length;
-let processedCount = 0, changedCount = 0;
-const titleEl = document.getElementById('pageTitle');
-const countEl = document.getElementById('clipCount');
-const originalTitle = titleEl.textContent;
-titleEl.textContent = '重构中';
-countEl.textContent = `(0/${total})`;
-const previewLines = PREVIEW_LINE_COUNT || 1;
-const roughMax = (CHARS_PER_LINE + 20) * previewLines;
+  if (currentRebuildController &amp;&amp; !currentRebuildController.aborted) {
+    showToast('正在重构中，请稍候');
+    return;
+  }
+  const targets = fullData.filter(it =&gt; it.pinTime === 0 &amp;&amp; it.favTime === 0);
+  if (targets.length === 0) {
+    showToast('没有需要重构的普通数据');
+    return;
+  }
+  const controller = { aborted: false };
+  currentRebuildController = controller;
+  const fileCache = new Map();
+  const total = targets.length;
+  let processedCount = 0, changedCount = 0;
+  const titleEl = document.getElementById('pageTitle');
+  const countEl = document.getElementById('clipCount');
+  const originalTitle = titleEl.textContent;
+  titleEl.textContent = '重构中';
+  countEl.textContent = `(0/${total})`;
+  const previewLines = PREVIEW_LINE_COUNT || 1;
+  const roughMax = (CHARS_PER_LINE + 20) * previewLines;
 
   function processBatch(startIdx) {
     if (controller.aborted) {
@@ -2381,6 +2396,7 @@ function searchStatus() {
 }
 
 function bindGlobalEvents() {
+
   document.getElementById('searchBtn').addEventListener('click', () =&gt; {
     if (searchRunning) {
       abortSearch(); 
@@ -2569,7 +2585,7 @@ window.onload = init;
 	</Scene>
 	<Scene sr="scene搜索输入框">
 		<cdate>1785757088104</cdate>
-		<edate>1785916622620</edate>
+		<edate>1786007276960</edate>
 		<heightLand>-1</heightLand>
 		<heightPort>1200</heightPort>
 		<nme>搜索输入框</nme>
@@ -2661,7 +2677,7 @@ window.onload = init;
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="3"/>
 			<Int sr="arg7" val="2"/>
-			<Int sr="arg8" val="2"/>
+			<Int sr="arg8" val="0"/>
 		</TextElement>
 		<EditTextElement sr="elements6" ve="3">
 			<flags>4</flags>
@@ -2934,7 +2950,7 @@ echo $?</Str>
 	</Task>
 	<Task sr="task204">
 		<cdate>1782883507466</cdate>
-		<edate>1785924117106</edate>
+		<edate>1786077205845</edate>
 		<id>204</id>
 		<nme>编辑剪贴板数据</nme>
 		<pri>100</pri>
@@ -3391,14 +3407,6 @@ The Y coordinate of the tap, in density-independent pixels (dp) from the top edg
 			</ConditionList>
 		</Action>
 		<Action sr="act45" ve="7">
-			<code>410</code>
-			<Str sr="arg0" ve="3">/sdcard/Android/1</Str>
-			<Str sr="arg1" ve="3">%par1
-%text</Str>
-			<Int sr="arg2" val="0"/>
-			<Int sr="arg3" val="1"/>
-		</Action>
-		<Action sr="act46" ve="7">
 			<code>130</code>
 			<Str sr="arg0" ve="3">剪贴板记录</Str>
 			<Int sr="arg1">
@@ -3414,7 +3422,7 @@ The Y coordinate of the tap, in density-independent pixels (dp) from the top edg
 			<Int sr="arg8" val="0"/>
 			<Int sr="arg9" val="0"/>
 		</Action>
-		<Action sr="act47" ve="7">
+		<Action sr="act46" ve="7">
 			<code>43</code>
 			<ConditionList sr="if">
 				<Condition sr="c0" ve="3">
@@ -3424,7 +3432,7 @@ The Y coordinate of the tap, in density-independent pixels (dp) from the top edg
 				</Condition>
 			</ConditionList>
 		</Action>
-		<Action sr="act48" ve="7">
+		<Action sr="act47" ve="7">
 			<code>596</code>
 			<se>false</se>
 			<Str sr="arg0" ve="3">%text</Str>
@@ -3432,7 +3440,7 @@ The Y coordinate of the tap, in density-independent pixels (dp) from the top edg
 			<Str sr="arg2" ve="3">%btext</Str>
 			<Int sr="arg3" val="0"/>
 		</Action>
-		<Action sr="act49" ve="7">
+		<Action sr="act48" ve="7">
 			<code>123</code>
 			<Str sr="arg0" ve="3">dir=%dir
 
@@ -3456,14 +3464,7 @@ fi</Str>
 			<Int sr="arg7" val="0"/>
 			<Int sr="arg8" val="0"/>
 		</Action>
-		<Action sr="act5" ve="7">
-			<code>590</code>
-			<Str sr="arg0" ve="3">%par12</Str>
-			<Str sr="arg1" ve="3">.</Str>
-			<Int sr="arg2" val="0"/>
-			<Int sr="arg3" val="0"/>
-		</Action>
-		<Action sr="act50" ve="7">
+		<Action sr="act49" ve="7">
 			<code>43</code>
 			<ConditionList sr="if">
 				<Condition sr="c0" ve="3">
@@ -3473,7 +3474,14 @@ fi</Str>
 				</Condition>
 			</ConditionList>
 		</Action>
-		<Action sr="act51" ve="7">
+		<Action sr="act5" ve="7">
+			<code>590</code>
+			<Str sr="arg0" ve="3">%par12</Str>
+			<Str sr="arg1" ve="3">.</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+		<Action sr="act50" ve="7">
 			<code>596</code>
 			<se>false</se>
 			<Str sr="arg0" ve="3">%text</Str>
@@ -3481,7 +3489,7 @@ fi</Str>
 			<Str sr="arg2" ve="3">%btext</Str>
 			<Int sr="arg3" val="0"/>
 		</Action>
-		<Action sr="act52" ve="7">
+		<Action sr="act51" ve="7">
 			<code>130</code>
 			<Str sr="arg0" ve="3">全局剪贴板</Str>
 			<Int sr="arg1">
@@ -3497,7 +3505,7 @@ fi</Str>
 			<Int sr="arg8" val="0"/>
 			<Int sr="arg9" val="0"/>
 		</Action>
-		<Action sr="act53" ve="7">
+		<Action sr="act52" ve="7">
 			<code>37</code>
 			<ConditionList sr="if">
 				<Condition sr="c0" ve="3">
@@ -3507,7 +3515,7 @@ fi</Str>
 				</Condition>
 			</ConditionList>
 		</Action>
-		<Action sr="act54" ve="7">
+		<Action sr="act53" ve="7">
 			<code>548</code>
 			<Str sr="arg0" ve="3">搜索中……</Str>
 			<Int sr="arg1" val="0"/>
@@ -3526,7 +3534,7 @@ fi</Str>
 			<Str sr="arg8" ve="3">5000</Str>
 			<Int sr="arg9" val="1"/>
 		</Action>
-		<Action sr="act55" ve="7">
+		<Action sr="act54" ve="7">
 			<code>37</code>
 			<coll>false</coll>
 			<ConditionList sr="if">
@@ -3537,7 +3545,7 @@ fi</Str>
 				</Condition>
 			</ConditionList>
 		</Action>
-		<Action sr="act56" ve="7">
+		<Action sr="act55" ve="7">
 			<code>123</code>
 			<se>false</se>
 			<Str sr="arg0" ve="3">dir=%dir
@@ -3581,10 +3589,10 @@ fi</Str>
 			<Int sr="arg7" val="0"/>
 			<Int sr="arg8" val="0"/>
 		</Action>
-		<Action sr="act57" ve="7">
+		<Action sr="act56" ve="7">
 			<code>43</code>
 		</Action>
-		<Action sr="act58" ve="7">
+		<Action sr="act57" ve="7">
 			<code>123</code>
 			<se>false</se>
 			<Str sr="arg0" ve="3">dir=%dir
@@ -3622,17 +3630,10 @@ fi</Str>
 			<Int sr="arg7" val="0"/>
 			<Int sr="arg8" val="0"/>
 		</Action>
-		<Action sr="act59" ve="7">
+		<Action sr="act58" ve="7">
 			<code>38</code>
 		</Action>
-		<Action sr="act6" ve="7">
-			<code>417</code>
-			<se>false</se>
-			<Str sr="arg0" ve="3">%dir/%tim/%par121</Str>
-			<Str sr="arg1" ve="3">%clip</Str>
-			<Int sr="arg2" val="1"/>
-		</Action>
-		<Action sr="act60" ve="7">
+		<Action sr="act59" ve="7">
 			<code>37</code>
 			<coll>false</coll>
 			<ConditionList sr="if">
@@ -3649,7 +3650,14 @@ fi</Str>
 				</Condition>
 			</ConditionList>
 		</Action>
-		<Action sr="act61" ve="7">
+		<Action sr="act6" ve="7">
+			<code>417</code>
+			<se>false</se>
+			<Str sr="arg0" ve="3">%dir/%tim/%par121</Str>
+			<Str sr="arg1" ve="3">%clip</Str>
+			<Int sr="arg2" val="1"/>
+		</Action>
+		<Action sr="act60" ve="7">
 			<code>547</code>
 			<se>false</se>
 			<Str sr="arg0" ve="3">%sjhs</Str>
@@ -3660,10 +3668,10 @@ fi</Str>
 			<Int sr="arg5" val="3"/>
 			<Int sr="arg6" val="0"/>
 		</Action>
-		<Action sr="act62" ve="7">
+		<Action sr="act61" ve="7">
 			<code>43</code>
 		</Action>
-		<Action sr="act63" ve="7">
+		<Action sr="act62" ve="7">
 			<code>547</code>
 			<se>false</se>
 			<Str sr="arg0" ve="3">%sjhs</Str>
@@ -3674,10 +3682,10 @@ fi</Str>
 			<Int sr="arg5" val="3"/>
 			<Int sr="arg6" val="0"/>
 		</Action>
-		<Action sr="act64" ve="7">
+		<Action sr="act63" ve="7">
 			<code>38</code>
 		</Action>
-		<Action sr="act65" ve="7">
+		<Action sr="act64" ve="7">
 			<code>53</code>
 			<se>false</se>
 			<Str sr="arg0" ve="3">全局剪贴板</Str>
@@ -3685,7 +3693,7 @@ fi</Str>
 			<Int sr="arg2" val="6"/>
 			<Str sr="arg3" ve="3">%sjhs</Str>
 		</Action>
-		<Action sr="act66" ve="7">
+		<Action sr="act65" ve="7">
 			<code>548</code>
 			<Str sr="arg0" ve="3">搜索中……</Str>
 			<Int sr="arg1" val="0"/>
@@ -3704,10 +3712,10 @@ fi</Str>
 			<Str sr="arg8" ve="3">1000</Str>
 			<Int sr="arg9" val="1"/>
 		</Action>
-		<Action sr="act67" ve="7">
+		<Action sr="act66" ve="7">
 			<code>43</code>
 		</Action>
-		<Action sr="act68" ve="7">
+		<Action sr="act67" ve="7">
 			<code>548</code>
 			<Str sr="arg0" ve="3">语法错误，搜索失败</Str>
 			<Int sr="arg1" val="0"/>
@@ -3726,9 +3734,12 @@ fi</Str>
 			<Str sr="arg8" ve="3"/>
 			<Int sr="arg9" val="1"/>
 		</Action>
-		<Action sr="act69" ve="7">
+		<Action sr="act68" ve="7">
 			<code>61</code>
 			<Int sr="arg0" val="200"/>
+		</Action>
+		<Action sr="act69" ve="7">
+			<code>38</code>
 		</Action>
 		<Action sr="act7" ve="7">
 			<code>135</code>
@@ -3756,14 +3767,11 @@ fi</Str>
 			</ConditionList>
 		</Action>
 		<Action sr="act70" ve="7">
-			<code>38</code>
-		</Action>
-		<Action sr="act71" ve="7">
 			<code>137</code>
 			<Int sr="arg0" val="0"/>
 			<Str sr="arg1" ve="3"/>
 		</Action>
-		<Action sr="act72" ve="7">
+		<Action sr="act71" ve="7">
 			<code>43</code>
 			<ConditionList sr="if">
 				<Condition sr="c0" ve="3">
@@ -3773,7 +3781,7 @@ fi</Str>
 				</Condition>
 			</ConditionList>
 		</Action>
-		<Action sr="act73" ve="7">
+		<Action sr="act72" ve="7">
 			<code>130</code>
 			<Str sr="arg0" ve="3">剪贴板记录</Str>
 			<Int sr="arg1">
@@ -3789,13 +3797,13 @@ fi</Str>
 			<Int sr="arg8" val="0"/>
 			<Int sr="arg9" val="0"/>
 		</Action>
+		<Action sr="act73" ve="7">
+			<code>38</code>
+		</Action>
 		<Action sr="act74" ve="7">
 			<code>38</code>
 		</Action>
 		<Action sr="act75" ve="7">
-			<code>38</code>
-		</Action>
-		<Action sr="act76" ve="7">
 			<code>130</code>
 			<Str sr="arg0" ve="3">全局剪贴板</Str>
 			<Int sr="arg1">
@@ -3811,7 +3819,7 @@ fi</Str>
 			<Int sr="arg8" val="0"/>
 			<Int sr="arg9" val="0"/>
 		</Action>
-		<Action sr="act77" ve="7">
+		<Action sr="act76" ve="7">
 			<code>548</code>
 			<Str sr="arg0" ve="3">取消 %par2 操作</Str>
 			<Int sr="arg1" val="0"/>
@@ -3871,7 +3879,7 @@ fi</Str>
 		<cdate>1783030338169</cdate>
 		<edate>1783030338169</edate>
 		<id>205</id>
-		<pri>7</pri>
+		<pri>53</pri>
 		<Action sr="act0" ve="7">
 			<code>58</code>
 			<se>false</se>
@@ -3916,7 +3924,7 @@ fi</Str>
 	</Task>
 	<Task sr="task208">
 		<cdate>1784884414628</cdate>
-		<edate>1785901507464</edate>
+		<edate>1786077196173</edate>
 		<id>208</id>
 		<nme>附加配置</nme>
 		<pri>100</pri>
@@ -4239,7 +4247,7 @@ splitSourceDirs 公共可用部分的完整路径，包括资源和 manifest&lt;
 	</Task>
 	<Task sr="task211">
 		<cdate>1782867028143</cdate>
-		<edate>1785925592771</edate>
+		<edate>1786077225918</edate>
 		<id>211</id>
 		<nme>全局剪贴板</nme>
 		<pri>100</pri>
@@ -4275,7 +4283,7 @@ splitSourceDirs 公共可用部分的完整路径，包括资源和 manifest&lt;
 			<label>范围 0.3~1
 小于0.3会播放完整滚动动画</label>
 			<Str sr="arg0" ve="3">%滚动系数</Str>
-			<Str sr="arg1" ve="3">1</Str>
+			<Str sr="arg1" ve="3">0.9</Str>
 			<Int sr="arg2" val="0"/>
 			<Int sr="arg3" val="0"/>
 			<Int sr="arg4" val="0"/>
@@ -4425,6 +4433,7 @@ splitSourceDirs 公共可用部分的完整路径，包括资源和 manifest&lt;
   "预览行数": 3,
   "重构每行字数": 70,
   "截断宽度系数": 0.85,
+  "预览换行符": "⤶",
   "最近上限": 1000,
   "初始加载": 30,
   "批量加载": 100,
@@ -4521,7 +4530,7 @@ splitSourceDirs 公共可用部分的完整路径，包括资源和 manifest&lt;
 	</Task>
 	<Task sr="task224">
 		<cdate>1785286941947</cdate>
-		<edate>1785832968722</edate>
+		<edate>1786070527048</edate>
 		<id>224</id>
 		<nme>剪贴板变更</nme>
 		<pri>6</pri>
@@ -4544,7 +4553,7 @@ splitSourceDirs 公共可用部分的完整路径，包括资源和 manifest&lt;
 	</Task>
 	<Task sr="task294">
 		<cdate>1782622506541</cdate>
-		<edate>1785920982634</edate>
+		<edate>1786077193468</edate>
 		<id>294</id>
 		<nme>剪贴板记录</nme>
 		<pri>100</pri>
