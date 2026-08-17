@@ -12,7 +12,6 @@
 - [数据结构与存储](#数据结构与存储)
 - [配置说明](#配置说明)
 - [使用指南](#使用指南)
-- [技术实现](#技术实现)
 - [导入部署教程](#导入部署教程)
 - [开源说明](#开源说明)
 
@@ -232,41 +231,6 @@
 5. 支持返回上一级搜索结果
 
 ---
-
-## 技术实现
-
-### 架构特点
-
-1. **WebView + JavaScript**：主界面完全由 WebView 渲染，JS 逻辑驱动
-2. **懒加载机制**：列表虚拟滚动，仅渲染可见区域，支持万级数据流畅滚动
-3. **防抖与节流**：文件写入、搜索处理均采用防抖/节流优化
-4. **双索引缓存**：维护 MD5 索引和位置索引，快速定位条目
-
-### 核心 JS 模块
-
-| 模块 | 主要函数 | 说明 |
-|------|----------|------|
-| **数据管理** | `parseLine`, `lineFromItem`, `dedupItems`, `sortData`, `syncFromMainFile` | 数据解析、序列化、去重、排序、同步 |
-| **渲染引擎** | `renderList`, `renderNormalBatch`, `createClipElement`, `checkLazyLoad` | 列表渲染、懒加载、元素创建 |
-| **搜索系统** | `startSearch`, `processSearchBatch`, `buildSearchPreview`, `pushSearchHistory` | 搜索执行、预览构建、历史栈 |
-| **交互系统** | `handleItemClick`, `showContextMenu`, `toggleFavorite`, `togglePin`, `deleteItem` | 点击、菜单、收藏、置顶、删除 |
-| **输入系统** | `inputMethod`, `sendNext`, `sendSub`, `shellNext` | 多方式文本输入 |
-| **滚动系统** | `scrollToTarget`, `stepScroll`, `cancelScrollAnimation` | 平滑滚动动画 |
-| **缓存系统** | `updateAllCaches`, `loadCaches`, `scheduleSave`, `writeIndexFileSafe` | 缓存管理、安全写入 |
-
-### 性能优化
-
-- **快速预览**：保存最近 N 条的预览数据，启动时直接显示
-- **分批同步**：从主文件同步数据时分批处理，避免阻塞 UI
-- **搜索分片**：搜索任务分片执行，每片之间让出主线程
-- **预览重构**：新条目异步重构预览，不阻塞主流程
-
-### 数据安全
-
-- 索引文件双备份机制（.bak 和 .bak.bak）
-- 安全写入：先写临时文件再替换，防止写入中断损坏
-- 防抖合并：频繁修改合并为一次写入，减少文件损坏概率
-
 
 ## 导入部署教程
  
