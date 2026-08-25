@@ -47,8 +47,7 @@
 | **编辑剪贴板数据** | 编辑/添加/搜索剪贴板内容的交互任务 |
 | **附加配置** | 辅助工具：数据重构、ADB 输入安装、ShortX 指令导出 |
 
-<img width="1080" height="4187" alt="Screenshot_2026-08-05-16-11-25-158_net dinglisch android taskerm~01" src="https://github.com/user-attachments/assets/dfc4d4c5-6502-4e19-875e-8a4fd231f05a" />
-
+<img width="1080" height="5626" alt="Screenshot_2026-08-25-15-08-05-107_net dinglisch android taskerm" src="https://github.com/user-attachments/assets/45d4aeb7-2294-40d4-a49e-9da3cd0bab72" />
 
 
 ### Scenes（场景）
@@ -75,7 +74,10 @@
 | **最近（recent）** | 仅显示最近使用的记录（上限可配置，默认 1000 条） |
 | **收藏（fav）** | 仅显示已收藏的记录 |
 
-<img width="1080" height="1203" alt="Screenshot_2026-08-05-18-04-52-638_mark via-edit" src="https://github.com/user-attachments/assets/84aa742f-278e-4e4e-8ffe-e6ee8b9e9f5c" />
+<img width="1061" height="1185" alt="Screenshot_2026-08-25-15-17-22-595_bin mt plus" src="https://github.com/user-attachments/assets/6f425697-1114-47bf-bdbe-c6fbd7be7923" />
+
+<img width="1061" height="1185" alt="Screenshot_2026-08-25-15-17-22-595_bin mt plus" src="https://github.com/user-attachments/assets/801fe948-ca83-44eb-9aba-603e6d11dc18" />
+
 
 
 ### 3. 全文搜索
